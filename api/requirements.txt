@@ -1,0 +1,5 @@
+Flask==2.1.1
+pymongo
+pillow==9.1.0
+python-dotenv
+boto3==1.21.32

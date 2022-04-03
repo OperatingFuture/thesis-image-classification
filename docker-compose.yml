@@ -1,0 +1,107 @@
+version: '3.5'
+
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: minio_s3
+    hostname: minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    env_file:
+      - .env
+    environment:
+      MINIO_ROOT_USER: ${MINIO_USERNAME}
+      MINIO_ROOT_PASSWORD: ${MINIO_PWD}
+    command: server --console-address ":9001" /data
+    networks:
+      - thesis_network
+  minio_client:
+    container_name: minio_client
+    build:
+      context: ./minio_storage
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      AWS_ACCESS_KEY_ID: ${MINIO_USERNAME}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_PWD}
+    depends_on:
+      - minio
+    networks:
+      - thesis_network
+  tensorflow-serving:
+      image: tensorflow/serving
+      container_name: tensorflow-serving
+      hostname: tensorflow-serving
+      restart: unless-stopped
+      ports:
+        - "8500:8500"
+        - "8501:8501"
+      depends_on:
+        - minio
+        - minio_client
+      env_file:
+        - .env
+      environment:
+        S3_ENDPOINT: ${MINIO_ENDPOINT}
+        AWS_ACCESS_KEY_ID: ${MINIO_USERNAME}
+        AWS_SECRET_ACCESS_KEY: ${MINIO_PWD}
+        AWS_REGION: ${REGION}
+        MODEL_BASE_PATH: ${MODEL_PATH}
+        MODEL_NAME: ${MODEL_NAME}
+      volumes:
+        - ./config:/data
+      networks:
+        - thesis_network
+  flask_app:
+    container_name: flask_app
+    restart: unless-stopped
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+       FLASK_ENV: dev
+       FLASK_APP: main.py
+       FLASK_RUN_HOST: 0.0.0.0
+       MONGODB_DATABASE: ${INITDB}
+       MONGODB_USERNAME: ${INIT_USERNAME}
+       MONGODB_PASSWORD: ${INIT_PWD}
+       MONGODB_HOSTNAME: mongodb
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./api:/api
+    depends_on:
+      - tensorflow-serving
+      - mongodb
+    networks:
+      - thesis_network
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    hostname: mongodb
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${ROOT_PWD}
+      MONGO_URI: ${MONGO_URI}
+      MONGO_USER: ${INIT_USERNAME}
+      MONGO_PWD: ${INIT_PWD}
+      MONGO_DB_NAME: ${INITDB}
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./mongodata/:/data/db
+      - ./mongo-init.sh:/docker-entrypoint-initdb.d/mongo-init.sh:ro
+    networks:
+      - thesis_network
+
+networks:
+  thesis_network:
+    name: thesis_app_network
