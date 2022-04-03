@@ -6,6 +6,7 @@ __pycache__/
 
 # Project Folders
 test_images/
+mongodata
 
 # C extensions
 *.so

@@ -1,7 +1,5 @@
 FROM tensorflow/tensorflow:2.7.0
 
-EXPOSE 5000
-
 COPY . /api
 WORKDIR /api
 
