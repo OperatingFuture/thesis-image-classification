@@ -1,23 +1,17 @@
-from api import api
-import json
-from flask import request, jsonify, send_file
-from werkzeug.utils import secure_filename
 import os
-import requests
-import numpy as np
-from keras.applications import inception_v3
-from keras.preprocessing import image
-from pymongo import MongoClient
+
 from dotenv import load_dotenv
+from flask import request, jsonify, send_file
+from pymongo import MongoClient
+from werkzeug.utils import secure_filename
+from api import api, config, helpers, classifier
+from api.s3_ops import upload_file
 
 ROOT_DIR = os.path.realpath("..")
 load_dotenv(os.path.join(ROOT_DIR, ".env"))
 
-# TODO move these to config
-ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
-UPLOAD_FOLDER = "test_images/"
-
-conn_str = "mongodb://"+os.getenv('INIT_USERNAME')+":"+os.getenv('INIT_PWD')+"@mongodb:27017/"+os.getenv('INITDB')
+conn_str = "mongodb://" + os.getenv('INIT_USERNAME') + ":" + os.getenv('INIT_PWD') + "@mongodb:27017/" + \
+           os.getenv('INITDB')
 client = MongoClient(conn_str)
 collection = client.image_data.predictions
 
@@ -42,7 +36,7 @@ def image_get(image_id):
 
     """
     filename = secure_filename(image_id)
-    im_path = os.path.join(UPLOAD_FOLDER, filename)
+    im_path = os.path.join(config.UPLOAD_FOLDER, filename)
     return send_file(im_path, mimetype="image/jpeg")
 
 
@@ -106,20 +100,20 @@ def image_post():
             jsonify({"message": "image filename can not be empty", "status": "400"}),
             400,
         )
-    if img and allowed_file(img.filename):
+    if img and helpers.allowed_file(img.filename):
 
         # --- Controller start
         # prepare the image and save it in the upload folder
         filename = secure_filename(img.filename)
 
-        im_path = os.path.join(UPLOAD_FOLDER, filename)
+        im_path = os.path.join(config.UPLOAD_FOLDER, filename)
 
         # TODO save image reference to database
         img.save(im_path)
+        yolo = upload_file(img, img.filename)
+        res = classifier.image_classifier(im_path)
 
-        res = image_classifier(im_path)
-
-        # Something wrong in foor loop for labels.
+        # Something wrong in for loop for labels.
         # TODO save classification result to database
         uri = "/image/" + filename
         labels = []
@@ -149,46 +143,5 @@ def image_post():
         )
 
 
-def allowed_file(filename: str) -> bool:
-    """Returns true if file name contains allowed extension and false otherwise
-    Parameters
-    ----------
-    filename : str
-       the filename along with the extension"""
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
-
-
 if __name__ == "main":
     api.run()
-
-
-def image_classifier(image_path: str):
-    # TODO make this a "something" service to interact with classifications
-    """Receives an image path and calls the tensorflow-serving endpoint that serves the classification model.
-     Parameters
-        ----------
-        image_path : str
-           the full image path where the wanted image can be found."""
-    # Preprocessing our input image
-    img = image.img_to_array(image.load_img(image_path, target_size=(224, 224))) / 255.
-
-    # this line is added because of a bug in tf_serving(1.10.0-dev)
-    img = img.astype('float16')
-
-    # prepare the tensorflow-serving payload
-    payload = {
-        "instances": [{'input_image': img.tolist()}]
-    }
-
-    # Make the POST request
-    r = requests.post('http://tensorflow-serving:8501/v1/models/inceptionv3:predict', json=payload)
-
-    # propagate error from tf serving api
-    if r.status_code > 200:
-        return jsonify({"message": json.loads(r.text), "status": r.status_code})
-
-    # Decoding results from TensorFlow Serving server
-    pred = json.loads(r.content.decode('utf-8'))
-
-    # Returning JSON response.
-    return inception_v3.decode_predictions(np.array(pred['predictions']))[0]

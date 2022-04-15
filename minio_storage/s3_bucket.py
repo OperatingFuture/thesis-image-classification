@@ -27,10 +27,12 @@ try:
             Bucket=os.getenv("MODELS_BUCKET"),
             CreateBucketConfiguration={"LocationConstraint": os.getenv("REGION")},
         )
+
         s3.create_bucket(
             Bucket=os.getenv("IMAGES_BUCKET"),
             CreateBucketConfiguration={"LocationConstraint": os.getenv("REGION")},
         )
+        s3.Bucket(os.getenv("IMAGES_BUCKET"))
 except ClientError as err:
     print("An exception occurred ::", err)
 

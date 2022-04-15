@@ -42,6 +42,7 @@ services:
       depends_on:
         - minio
         - minio_client
+        - mongodb
       env_file:
         - .env
       environment:
@@ -64,7 +65,7 @@ services:
     env_file:
       - .env
     environment:
-       FLASK_ENV: dev
+       FLASK_ENV: development
        FLASK_APP: main.py
        FLASK_RUN_HOST: 0.0.0.0
        MONGODB_DATABASE: ${INITDB}
@@ -78,6 +79,8 @@ services:
     depends_on:
       - tensorflow-serving
       - mongodb
+      - minio_client
+      - minio
     networks:
       - thesis_network
   mongodb:
