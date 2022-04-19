@@ -1,3 +1,4 @@
+import io
 import json
 import numpy as np
 import requests
@@ -6,7 +7,7 @@ from keras.applications import inception_v3
 from keras.preprocessing import image
 
 
-def image_classifier(image_path: str):
+def image_classifier(image_path):
     # TODO make this a "something" service to interact with classifications
     """Receives an image path and calls the tensorflow-serving endpoint that serves the classification model.
      Parameters
@@ -14,10 +15,10 @@ def image_classifier(image_path: str):
         image_path : str
            the full image path where the wanted image can be found."""
     # Preprocessing our input image
-    img = image.img_to_array(image.load_img(image_path, target_size=(224, 224))) / 255.
-
+    # img = image.img_to_array(image.load_img(image_path, target_size=(224, 224))) / 255.
+    img = image.img_to_array(image_path) / 255.
     # this line is added because of a bug in tf_serving(1.10.0-dev)
-    img = img.astype('float16')
+    # img = img.astype('float16')
 
     # prepare the tensorflow-serving payload
     payload = {

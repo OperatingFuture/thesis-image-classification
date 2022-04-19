@@ -65,7 +65,7 @@ services:
     env_file:
       - .env
     environment:
-       FLASK_ENV: development
+       FLASK_ENV: dev
        FLASK_APP: main.py
        FLASK_RUN_HOST: 0.0.0.0
        MONGODB_DATABASE: ${INITDB}

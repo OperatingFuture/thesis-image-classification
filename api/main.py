@@ -1,11 +1,14 @@
+import io
 import os
+import tempfile
 
+from PIL import Image
 from dotenv import load_dotenv
 from flask import request, jsonify, send_file
 from pymongo import MongoClient
 from werkzeug.utils import secure_filename
-from api import api, config, helpers, classifier
-from api.s3_ops import upload_file
+
+from api import api, config, helpers, classifier, s3_ops
 
 ROOT_DIR = os.path.realpath("..")
 load_dotenv(os.path.join(ROOT_DIR, ".env"))
@@ -36,8 +39,10 @@ def image_get(image_id):
 
     """
     filename = secure_filename(image_id)
-    im_path = os.path.join(config.UPLOAD_FOLDER, filename)
-    return send_file(im_path, mimetype="image/jpeg")
+    # im_path = os.path.join(config.UPLOAD_FOLDER, filename)
+    s3_path = 'http://localhost:9000/' + os.getenv("IMAGES_BUCKET") + '/' + filename
+    return s3_path
+    # return send_file(s3_path, mimetype="image/jpeg")
 
 
 # Takes the image details from mongodb.
@@ -94,24 +99,29 @@ def image_post():
             ),
             400,
         )
-    img = request.files["image"]
+    img = request.files['image']
+    image = img.stream.read()
+    # buffer = helpers.image_in_memory(img)
+    # size = os.fstat(buffer.fileno()).st_size
     if img.filename == "":
         return (
             jsonify({"message": "image filename can not be empty", "status": "400"}),
             400,
         )
     if img and helpers.allowed_file(img.filename):
-
         # --- Controller start
         # prepare the image and save it in the upload folder
         filename = secure_filename(img.filename)
-
+        content_type = img.content_type
         im_path = os.path.join(config.UPLOAD_FOLDER, filename)
-
+        upload_image = s3_ops.upload_file_to_s3(image, filename, content_type)
         # TODO save image reference to database
-        img.save(im_path)
-        yolo = upload_file(img, img.filename)
-        res = classifier.image_classifier(im_path)
+        # img.save(im_path)
+
+        get_image = s3_ops.image_from_s3(filename)
+
+        # get_image.save(im_path)
+        res = classifier.image_classifier(get_image)
 
         # Something wrong in for loop for labels.
         # TODO save classification result to database

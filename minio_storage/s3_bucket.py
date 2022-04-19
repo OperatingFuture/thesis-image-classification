@@ -1,8 +1,11 @@
 import os
+import json
 import boto3
 from botocore.client import ClientError
 from botocore.config import Config
 from dotenv import load_dotenv
+
+from config import images_policy, models_policy
 
 ROOT_DIR = os.path.realpath("..")
 MODELS_DIR = os.path.realpath("models/savedmodels")
@@ -32,7 +35,7 @@ try:
             Bucket=os.getenv("IMAGES_BUCKET"),
             CreateBucketConfiguration={"LocationConstraint": os.getenv("REGION")},
         )
-        s3.Bucket(os.getenv("IMAGES_BUCKET"))
+
 except ClientError as err:
     print("An exception occurred ::", err)
 
@@ -52,7 +55,18 @@ def upload_files(path):
                 bucket.put_object(Key=full_path[len(path) + 1:], Body=data)
 
 
+models_bucket_policy = json.dumps(models_policy)
+images_bucket_policy = json.dumps(images_policy)
+
+s3_client = boto3.client('s3', endpoint_url=os.getenv("MINIO_ENDPOINT"),
+                         aws_access_key_id=os.getenv("MINIO_USERNAME"),
+                         aws_secret_access_key=os.getenv("MINIO_PWD"))
+
+
 try:
+    print("Adding custom policy to buckets...")
+    s3_client.put_bucket_policy(Bucket=os.getenv("MODELS_BUCKET"), Policy=models_bucket_policy)
+    s3_client.put_bucket_policy(Bucket=os.getenv("IMAGES_BUCKET"), Policy=images_bucket_policy)
     print("Uploading models to S3...")
     upload_files(MODELS_DIR)
     print("Uploading finished...")
