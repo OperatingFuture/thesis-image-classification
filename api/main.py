@@ -1,14 +1,11 @@
-import io
 import os
-import tempfile
 
-from PIL import Image
 from dotenv import load_dotenv
-from flask import request, jsonify, send_file
+from flask import request, jsonify
 from pymongo import MongoClient
 from werkzeug.utils import secure_filename
 
-from api import api, config, helpers, classifier, s3_ops
+from api import api, helpers, classifier, s3_ops
 
 ROOT_DIR = os.path.realpath("..")
 load_dotenv(os.path.join(ROOT_DIR, ".env"))
@@ -48,7 +45,7 @@ def image_get(image_id):
 # Takes the image details from mongodb.
 @api.route("/image/<image_id>", methods=["GET"])
 def get_image_data(image_id: str):
-    filename = "/image/" + image_id
+    filename = 'http://localhost:9000/' + os.getenv("IMAGES_BUCKET") + '/' + image_id
 
     try:
         data = collection.find_one({"uri": filename}, {"_id": 0})
@@ -101,8 +98,7 @@ def image_post():
         )
     img = request.files['image']
     image = img.stream.read()
-    # buffer = helpers.image_in_memory(img)
-    # size = os.fstat(buffer.fileno()).st_size
+
     if img.filename == "":
         return (
             jsonify({"message": "image filename can not be empty", "status": "400"}),
@@ -113,10 +109,8 @@ def image_post():
         # prepare the image and save it in the upload folder
         filename = secure_filename(img.filename)
         content_type = img.content_type
-        im_path = os.path.join(config.UPLOAD_FOLDER, filename)
         upload_image = s3_ops.upload_file_to_s3(image, filename, content_type)
         # TODO save image reference to database
-        # img.save(im_path)
 
         get_image = s3_ops.image_from_s3(filename)
 
@@ -125,7 +119,8 @@ def image_post():
 
         # Something wrong in for loop for labels.
         # TODO save classification result to database
-        uri = "/image/" + filename
+        # uri = "/image/" + filename
+        uri = upload_image
         labels = []
         for o in res:
             case = {'id': o[0], 'label': o[1], 'percentage': o[2]}

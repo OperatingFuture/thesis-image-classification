@@ -6,7 +6,6 @@ from botocore.config import Config
 from dotenv import load_dotenv
 from PIL import Image
 
-
 ROOT_DIR = os.path.realpath("..")
 load_dotenv(os.path.join(ROOT_DIR, ".env"))
 
@@ -30,22 +29,14 @@ def upload_file_to_s3(img, filename, content_type):
     Docs: https://boto3.readthedocs.io/en/latest/guide/s3.html
     """
     try:
-        # client.put_object(
-        #     os.getenv("IMAGES_BUCKET"), filename, img, size, content_type="image/jpeg")
         s3.put_object(Body=img,
                       Bucket=os.getenv("IMAGES_BUCKET"),
                       Key=filename,
                       ContentType=content_type)
-        # s3.upload_fileobj(
-        #     img,
-        #     os.getenv("IMAGES_BUCKET"),
-        #     filename
-        # )
     except ClientError as e:
         print("Something Happened: ", e)
         return e
     return 'http://localhost:9000/' + os.getenv("IMAGES_BUCKET") + '/' + filename
-
 
 
 def image_from_s3(filename):
@@ -56,4 +47,3 @@ def image_from_s3(filename):
     img = img.convert('RGB')
     img = img.resize((224, 224))
     return img
-
