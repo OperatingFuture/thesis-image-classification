@@ -1,7 +1,8 @@
 import os
-
+import io
+import requests
 from dotenv import load_dotenv
-from flask import request, jsonify
+from flask import request, jsonify, Response, send_file
 from pymongo import MongoClient
 from werkzeug.utils import secure_filename
 
@@ -36,10 +37,13 @@ def image_get(image_id):
 
     """
     filename = secure_filename(image_id)
-    # im_path = os.path.join(config.UPLOAD_FOLDER, filename)
     s3_path = 'http://localhost:9000/' + os.getenv("IMAGES_BUCKET") + '/' + filename
-    return s3_path
-    # return send_file(s3_path, mimetype="image/jpeg")
+    image_url = requests.get(s3_path, stream=True)
+    file_like_object = io.BytesIO()
+    file_like_object.write(image_url.content)
+    file_like_object.seek(0)
+
+    return send_file(file_like_object, mimetype='image/jpeg')
 
 
 # Takes the image details from mongodb.
@@ -121,10 +125,11 @@ def image_post():
         # TODO save classification result to database
         # uri = "/image/" + filename
         uri = upload_image
-        labels = []
-        for o in res:
-            case = {'id': o[0], 'label': o[1], 'percentage': o[2]}
-            labels.append(case)
+        # labels = res
+        labels = {'id': res[0][0], 'label': res[0][1], 'percentage': res[0][2]}
+        # for item in res[0]:
+        #     case = {'id': item[0], 'label': item[1], 'percentage': item[2]}
+        #     labels.append(case)
 
         obj = {"uri": uri, "labels": labels}
 

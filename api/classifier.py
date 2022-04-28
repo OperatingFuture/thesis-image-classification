@@ -16,23 +16,24 @@ def image_classifier(image_path):
     # Preprocessing our input image
     # img = image.img_to_array(image.load_img(image_path, target_size=(224, 224))) / 255.
     img = image.img_to_array(image_path) / 255.
-    # this line is added because of a bug in tf_serving(1.10.0-dev)
-    # img = img.astype('float16')
 
+    url = 'http://tensorflow-serving:8501/v1/models/inceptionv3:predict'
+    headers = {"content-type": "application/json"}
     # prepare the tensorflow-serving payload
-    payload = {
-        "instances": [{'input_image': img.tolist()}]
-    }
+    # payload = {
+    #     "instances": [{'input_image': img.tolist()}]
+    # }
+    data = json.dumps({"instances": [{'input_image': img.tolist()}]})
 
     # Make the POST request
-    r = requests.post('http://tensorflow-serving:8501/v1/models/inceptionv3:predict', json=payload)
+    response = requests.post(url, data=data, headers=headers)
 
     # propagate error from tf serving api
-    if r.status_code > 200:
-        return jsonify({"message": json.loads(r.text), "status": r.status_code})
+    if response.status_code > 200:
+        return jsonify({"message": json.loads(response.text), "status": response.status_code})
 
     # Decoding results from TensorFlow Serving server
-    pred = json.loads(r.content.decode('utf-8'))
+    pred = json.loads(response.content)
 
     # Returning JSON response.
     return inception_v3.decode_predictions(np.array(pred['predictions']))[0]
