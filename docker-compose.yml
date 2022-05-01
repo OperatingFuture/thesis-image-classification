@@ -42,6 +42,7 @@ services:
       depends_on:
         - minio
         - minio_client
+        - mongodb
       env_file:
         - .env
       environment:
@@ -78,6 +79,8 @@ services:
     depends_on:
       - tensorflow-serving
       - mongodb
+      - minio_client
+      - minio
     networks:
       - thesis_network
   mongodb:
