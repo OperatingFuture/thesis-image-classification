@@ -6,16 +6,16 @@ help:
 
 
 run:
-	docker-compose down -v
-	docker-compose up -d
+	docker compose down -v
+	docker compose up -d
 
 run-clean:
-	docker-compose down -v
-	docker-compose up  --build
+	docker compose down -v
+	docker compose up  --build
 
 run-detached:
-	docker-compose down -v
-	docker-compose up -d --build
+	docker compose down -v
+	docker compose up -d --build
 
 down:
-	docker-compose down -v
+	docker compose down -v

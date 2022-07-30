@@ -2,7 +2,7 @@ import os
 import io
 import requests
 from dotenv import load_dotenv
-from flask import request, jsonify, Response, send_file
+from flask import request, jsonify, Response, send_file, render_template
 from pymongo import MongoClient
 from werkzeug.utils import secure_filename
 
@@ -21,6 +21,12 @@ collection = client.image_data.predictions
 def alive():
     """Liveliness Endpoint. Can be used as a probe."""
     return jsonify({"message": "I'm alive", "status": 200})
+
+
+@api.route("/", methods=["GET"])
+def home():
+    """Homepage"""
+    return render_template("index.html")
 
 
 @api.route("/image/<image_id>/preview", methods=["GET"])
@@ -133,9 +139,19 @@ def image_post():
 
         obj = {"uri": uri, "labels": labels}
 
+        predictions = {
+            "class1": res[0][1],
+            "class2": res[1][1],
+            "class3": res[2][1],
+            "prob1": res[0][2],
+            "prob2": res[1][2],
+            "prob3": res[2][2],
+        }
+
         try:
             collection.insert_one(obj)
-            return jsonify({"message": "success", "status": "200"}), 200
+            return render_template('success.html', img=image, predictions=predictions)
+            # return jsonify({"message": "success", "status": "200"}), 200
         except Exception as e:
             print("An exception occurred ::", e)
             return jsonify({"Error": e.__str__()})
