@@ -11,7 +11,6 @@ from api import api, helpers, classifier, s3_ops
 
 ROOT_DIR = os.path.realpath("..")
 load_dotenv(os.path.join(ROOT_DIR, ".env"))
-
 conn_str = "mongodb://" + os.getenv('INIT_USERNAME') + ":" + os.getenv('INIT_PWD') + "@mongodb:27017/" + \
            os.getenv('INITDB')
 client = MongoClient(conn_str)
@@ -150,7 +149,8 @@ def image_post():
 
         try:
             collection.insert_one(obj)
-            return render_template('success.html', img_filename=filename, predictions=predictions)
+            return render_template('success.html', url=os.getenv("PREVIEW_MINIO_URL"), img_filename=filename,
+                                   predictions=predictions)
             # return jsonify({"message": "success", "status": "200"}), 200
         except Exception as e:
             print("An exception occurred ::", e)
