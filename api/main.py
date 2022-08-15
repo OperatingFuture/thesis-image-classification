@@ -1,3 +1,4 @@
+import base64
 import os
 import io
 import requests
@@ -121,7 +122,6 @@ def image_post():
         content_type = img.content_type
         upload_image = s3_ops.upload_file_to_s3(image, filename, content_type)
         # TODO save image reference to database
-
         get_image = s3_ops.image_from_s3(filename)
 
         # get_image.save(im_path)
@@ -150,7 +150,7 @@ def image_post():
 
         try:
             collection.insert_one(obj)
-            return render_template('success.html', img=image, predictions=predictions)
+            return render_template('success.html', img_filename=filename, predictions=predictions)
             # return jsonify({"message": "success", "status": "200"}), 200
         except Exception as e:
             print("An exception occurred ::", e)

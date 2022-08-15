@@ -22,6 +22,14 @@
             margin: auto;
         }
 
+        .center {
+            margin: auto;
+            width: 50%;
+            padding: 10px;
+            text-align: center;
+        }
+
+
         .bg-img {
             width: 100%;
             height: 100vh;
@@ -48,12 +56,12 @@
                 </div>
             </div>
 
-            <div class="upload-section">
+            <div class="upload-section center">
 
                 <div class="upload-file">
                     <form class="file-form" action="/image" method="post" enctype="multipart/form-data">
                         <input class="file-form-input" type="file" name="image"/>
-                        <button class="btn btn-success btn-lg">Upload</button>
+                        <button class="btn btn-success btn-lg upload-img">Upload</button>
                     </form>
                 </div>
 
