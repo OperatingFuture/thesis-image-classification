@@ -23,6 +23,11 @@
             text-align: center;
             font-size: 18px;
         }
+
+        img {
+        width: 100%;
+        height: 100%;
+      }
     </style>
 </head>
 <body>
@@ -37,8 +42,8 @@
         <row style="width: 100% ; display: flex; justify-content: center;">
             <h3 class="header-text">Uploaded Image</h3>
         </row>
-        <div style="width: 100% ; display: flex; justify-content: center;">
-            <img class="result-img" src="{{ url }}{{ img_filename }}" alt={{ img_filename }}>
+        <div style="width: auto; height: auto; display: flex; justify-content: center;">
+            <img class="result-img" src="{{ url }}" alt={{ img_filename }}>
         </div>
     </div>
 

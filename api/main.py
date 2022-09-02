@@ -1,4 +1,3 @@
-import base64
 import os
 import io
 import requests
@@ -95,7 +94,6 @@ def images():
 
 @api.route("/image", methods=["POST"])
 def image_post():
-    # do all the validations in payload (validate every parameter)
     """This endpoint receives a form parameter called image with the image file to be classified,
     and saves the image uri to mongo.
     """
@@ -114,13 +112,13 @@ def image_post():
             jsonify({"message": "image filename can not be empty", "status": "400"}),
             400,
         )
+
     if img and helpers.allowed_file(img.filename):
         # --- Controller start
         # prepare the image and save it in the upload folder
         filename = secure_filename(img.filename)
         content_type = img.content_type
         upload_image = s3_ops.upload_file_to_s3(image, filename, content_type)
-        # TODO save image reference to database
         get_image = s3_ops.image_from_s3(filename)
 
         # get_image.save(im_path)
@@ -136,8 +134,6 @@ def image_post():
         #     case = {'id': item[0], 'label': item[1], 'percentage': item[2]}
         #     labels.append(case)
 
-        obj = {"uri": uri, "labels": labels}
-
         predictions = {
             "class1": res[0][1],
             "class2": res[1][1],
@@ -147,10 +143,12 @@ def image_post():
             "prob3": res[2][2],
         }
 
+        # obj = {"uri": uri, "labels": labels}
+        obj = {"uri": uri, "labels": predictions}
+
         try:
             collection.insert_one(obj)
-            return render_template('success.html', url=os.getenv("PREVIEW_MINIO_URL"), img_filename=filename,
-                                   predictions=predictions)
+            return render_template('success.html', url=uri, predictions=predictions)
             # return jsonify({"message": "success", "status": "200"}), 200
         except Exception as e:
             print("An exception occurred ::", e)
