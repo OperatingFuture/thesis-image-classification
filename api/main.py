@@ -1,17 +1,13 @@
-import os
 import io
 import requests
-from dotenv import load_dotenv
 from flask import request, jsonify, Response, send_file, render_template
 from pymongo import MongoClient
 from werkzeug.utils import secure_filename
 
 from api import api, helpers, classifier, s3_ops
 
-ROOT_DIR = os.path.realpath("..")
-load_dotenv(os.path.join(ROOT_DIR, ".env"))
-conn_str = "mongodb://" + os.getenv('INIT_USERNAME') + ":" + os.getenv('INIT_PWD') + "@mongodb:27017/" + \
-           os.getenv('INITDB')
+
+conn_str = "mongodb://root_user:root_pwd@mongodb:27017/?authMechanism=DEFAULT"
 client = MongoClient(conn_str)
 collection = client.image_data.predictions
 
@@ -42,7 +38,7 @@ def image_get(image_id):
 
     """
     filename = secure_filename(image_id)
-    s3_path = 'http://localhost:9000/' + os.getenv("IMAGES_BUCKET") + '/' + filename
+    s3_path = 'http://minio:9000/' + 'saved-images/' + filename
     image_url = requests.get(s3_path, stream=True)
     file_like_object = io.BytesIO()
     file_like_object.write(image_url.content)
@@ -54,7 +50,7 @@ def image_get(image_id):
 # Takes the image details from mongodb.
 @api.route("/image/<image_id>", methods=["GET"])
 def get_image_data(image_id: str):
-    filename = 'http://localhost:9000/' + os.getenv("IMAGES_BUCKET") + '/' + image_id
+    filename = 'http://minio:9000/' + 'saved-images/' + image_id
 
     try:
         data = collection.find_one({"uri": filename}, {"_id": 0})
@@ -129,7 +125,7 @@ def image_post():
         # uri = "/image/" + filename
         uri = upload_image
         # labels = res
-        labels = {'id': res[0][0], 'label': res[0][1], 'percentage': res[0][2]}
+        # labels = {'id': res[0][0], 'label': res[0][1], 'percentage': res[0][2]}
         # for item in res[0]:
         #     case = {'id': item[0], 'label': item[1], 'percentage': item[2]}
         #     labels.append(case)

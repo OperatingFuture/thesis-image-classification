@@ -3,36 +3,38 @@ version: '3.5'
 services:
   minio:
     image: minio/minio:latest
-    container_name: minio_s3
+    container_name: minio
     hostname: minio
     restart: unless-stopped
     ports:
       - "9000:9000"
       - "9001:9001"
-    env_file:
-      - .env
     environment:
-      MINIO_ROOT_USER: ${MINIO_USERNAME}
-      MINIO_ROOT_PASSWORD: ${MINIO_PWD}
-    command: server --console-address ":9001" /data
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    command: server /data --console-address ":9001"
     networks:
       - thesis_network
-  minio_client:
-    container_name: minio_client
-    build:
-      context: ./minio_storage
-      dockerfile: Dockerfile
-    env_file:
-      - .env
-    environment:
-      AWS_ACCESS_KEY_ID: ${MINIO_USERNAME}
-      AWS_SECRET_ACCESS_KEY: ${MINIO_PWD}
+  minio_mc:
+    container_name: minio_mc
+    image: minio/mc:latest
     depends_on:
       - minio
+    volumes:
+      - ./models:/media
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set minio http://minio:9000 minio minio123;
+      /usr/bin/mc mb minio/saved-images;
+      /usr/bin/mc mb minio/saved-models;
+      /usr/bin/mc anonymous set public minio/saved-images;
+      /usr/bin/mc anonymous set public minio/saved-models;
+      /usr/bin/mc cp -r /media/ minio/saved-models;
+      "
     networks:
       - thesis_network
   tensorflow-serving:
-      image: tensorflow/serving
+      image: tensorflow/serving:2.6.2
       container_name: tensorflow-serving
       hostname: tensorflow-serving
       restart: unless-stopped
@@ -43,17 +45,12 @@ services:
         - minio
         - minio_client
         - mongodb
-      env_file:
-        - .env
       environment:
-        S3_ENDPOINT: ${MINIO_ENDPOINT}
-        AWS_ACCESS_KEY_ID: ${MINIO_USERNAME}
-        AWS_SECRET_ACCESS_KEY: ${MINIO_PWD}
-        AWS_REGION: ${REGION}
-        MODEL_BASE_PATH: ${MODEL_PATH}
-        MODEL_NAME: ${MODEL_NAME}
-      volumes:
-        - ./config:/data
+        S3_ENDPOINT: http://minio:9000
+        AWS_ACCESS_KEY_ID: minio
+        AWS_SECRET_ACCESS_KEY: minio123
+        MODEL_BASE_PATH: s3://saved-models
+        MODEL_NAME: inceptionv3
       networks:
         - thesis_network
   flask_app:
@@ -62,16 +59,10 @@ services:
     build:
       context: ./api
       dockerfile: Dockerfile
-    env_file:
-      - .env
     environment:
        FLASK_ENV: dev
        FLASK_APP: main.py
        FLASK_RUN_HOST: 0.0.0.0
-       MONGODB_DATABASE: ${INITDB}
-       MONGODB_USERNAME: ${INIT_USERNAME}
-       MONGODB_PASSWORD: ${INIT_PWD}
-       MONGODB_HOSTNAME: mongodb
     ports:
       - "5000:5000"
     volumes:
@@ -88,20 +79,12 @@ services:
     container_name: mongodb
     hostname: mongodb
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${ROOT_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${ROOT_PWD}
-      MONGO_URI: ${MONGO_URI}
-      MONGO_USER: ${INIT_USERNAME}
-      MONGO_PWD: ${INIT_PWD}
-      MONGO_DB_NAME: ${INITDB}
+      MONGO_INITDB_ROOT_USERNAME: root_user
+      MONGO_INITDB_ROOT_PASSWORD: root_pwd
+      MONGO_DB_NAME: image_data
     ports:
       - "27017:27017"
-    volumes:
-      - ./mongodata/:/data/db
-      - ./mongo-init.sh:/docker-entrypoint-initdb.d/mongo-init.sh:ro
     networks:
       - thesis_network
 
