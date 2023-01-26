@@ -33,26 +33,6 @@ services:
       "
     networks:
       - thesis_network
-  tensorflow-serving:
-      image: tensorflow/serving:2.6.2
-      container_name: tensorflow-serving
-      hostname: tensorflow-serving
-      restart: unless-stopped
-      ports:
-        - "8500:8500"
-        - "8501:8501"
-      depends_on:
-        - minio
-        - minio_client
-        - mongodb
-      environment:
-        S3_ENDPOINT: http://minio:9000
-        AWS_ACCESS_KEY_ID: minio
-        AWS_SECRET_ACCESS_KEY: minio123
-        MODEL_BASE_PATH: s3://saved-models
-        MODEL_NAME: inceptionv3
-      networks:
-        - thesis_network
   flask_app:
     container_name: flask_app
     restart: unless-stopped
@@ -68,7 +48,6 @@ services:
     volumes:
       - ./api:/api
     depends_on:
-      - tensorflow-serving
       - mongodb
       - minio_client
       - minio

@@ -1,15 +1,18 @@
 import io
+import os
+
+import keras
 import requests
 from flask import request, jsonify, Response, send_file, render_template
 from pymongo import MongoClient
 from werkzeug.utils import secure_filename
-
-from api import api, helpers, classifier, s3_ops
-
+from api import api, helpers, s3_ops, preprocess
+from api.preprocess import predict
 
 conn_str = "mongodb://root_user:root_pwd@mongodb:27017/?authMechanism=DEFAULT"
 client = MongoClient(conn_str)
 collection = client.image_data.predictions
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 @api.route("/alive", methods=["GET"])
@@ -100,54 +103,51 @@ def image_post():
             ),
             400,
         )
-    img = request.files['image']
-    image = img.stream.read()
+    image_file = request.files['image']
+    image_filename = secure_filename(image_file.filename)
+    # image = img.stream.read()
 
-    if img.filename == "":
+    if image_filename == "":
         return (
             jsonify({"message": "image filename can not be empty", "status": "400"}),
             400,
         )
 
-    if img and helpers.allowed_file(img.filename):
+    if image_file and helpers.allowed_file(image_filename):
         # --- Controller start
-        # prepare the image and save it in the upload folder
-        filename = secure_filename(img.filename)
-        content_type = img.content_type
-        upload_image = s3_ops.upload_file_to_s3(image, filename, content_type)
-        get_image = s3_ops.image_from_s3(filename)
+        # prepare the image and save it in s3 bucket
+        content_type = image_file.content_type
+        upload_image_url = s3_ops.upload_img_to_s3(image_file, image_filename, content_type)
+        get_image = s3_ops.image_from_s3(image_filename)
+        # res = classifier.image_classifier(get_image)
 
-        # get_image.save(im_path)
-        res = classifier.image_classifier(get_image)
+        model = s3_ops.load_model_from_s3("model_final")
+        class_result, prob_result = predict(get_image, model)
 
-        # Something wrong in for loop for labels.
-        # TODO save classification result to database
-        # uri = "/image/" + filename
-        uri = upload_image
-        # labels = res
-        # labels = {'id': res[0][0], 'label': res[0][1], 'percentage': res[0][2]}
-        # for item in res[0]:
-        #     case = {'id': item[0], 'label': item[1], 'percentage': item[2]}
-        #     labels.append(case)
+        # predictions = {
+        #     "class1": 'yolo',
+        #     "class2": 'yolo',
+        #     "class3": 'yolo',
+        #     "prob1": 40,
+        #     "prob2": 50,
+        #     "prob3": 10,
+        # }
 
         predictions = {
-            "class1": res[0][1],
-            "class2": res[1][1],
-            "class3": res[2][1],
-            "prob1": res[0][2],
-            "prob2": res[1][2],
-            "prob3": res[2][2],
+            "class1": class_result[0],
+            "class2": class_result[1],
+            "class3": class_result[2],
+            "prob1": prob_result[0],
+            "prob2": prob_result[1],
+            "prob3": prob_result[2],
         }
 
-        # obj = {"uri": uri, "labels": labels}
-        obj = {"uri": uri, "labels": predictions}
+        obj = {"uri": upload_image_url, "labels": "predictions"}
 
         try:
             collection.insert_one(obj)
-            return render_template('success.html', url=uri, predictions=predictions)
-            # return jsonify({"message": "success", "status": "200"}), 200
+            return render_template('success.html', url=upload_image_url, predictions=predictions)
         except Exception as e:
-            print("An exception occurred ::", e)
             return jsonify({"Error": e.__str__()})
 
         # ----- Controller end

@@ -1,4 +1,6 @@
-from api import config
+# from keras.models import load_model
+
+ALLOWED_EXTENSIONS = ["png", "jpg", "jpeg", "gif"]
 
 
 def allowed_file(filename: str) -> bool:
@@ -7,4 +9,10 @@ def allowed_file(filename: str) -> bool:
     ----------
     filename : str
        the filename along with the extension"""
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in config.ALLOWED_EXTENSIONS
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+# def get_model():
+#     model = load_model("../models/custom_cnn/1/saved_model.pb")
+#     print("*model is loaded")
+#     return model

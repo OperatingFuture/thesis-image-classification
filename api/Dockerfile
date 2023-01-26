@@ -1,4 +1,4 @@
-FROM tensorflow/tensorflow:2.7.0
+FROM python:3.10
 
 
 WORKDIR /api
