@@ -10,9 +10,3 @@ def allowed_file(filename: str) -> bool:
     filename : str
        the filename along with the extension"""
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
-
-
-# def get_model():
-#     model = load_model("../models/custom_cnn/1/saved_model.pb")
-#     print("*model is loaded")
-#     return model

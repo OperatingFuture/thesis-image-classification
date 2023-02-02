@@ -1,18 +1,39 @@
+import base64
 import io
+import json
 import os
-
-import keras
 import requests
 from flask import request, jsonify, Response, send_file, render_template
 from pymongo import MongoClient
 from werkzeug.utils import secure_filename
-from api import api, helpers, s3_ops, preprocess
-from api.preprocess import predict
+from api import api, helpers, s3_ops
 
 conn_str = "mongodb://root_user:root_pwd@mongodb:27017/?authMechanism=DEFAULT"
 client = MongoClient(conn_str)
 collection = client.image_data.predictions
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def predict(img, model):
+    result = model.predict(img)
+    classes = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
+    dict_result = {}
+    for i in range(10):
+        dict_result[result[0][i]] = classes[i]
+
+    res = result[0]
+    res.sort()
+    res = res[::-1]
+    prob = res[:3]
+
+    prob_result = []
+    class_result = []
+    for i in range(3):
+        prob_result.append((prob[i] * 100).round(2))
+        class_result.append(dict_result[prob[i]])
+
+    return class_result, prob_result
+
 
 
 @api.route("/alive", methods=["GET"])
@@ -105,7 +126,6 @@ def image_post():
         )
     image_file = request.files['image']
     image_filename = secure_filename(image_file.filename)
-    # image = img.stream.read()
 
     if image_filename == "":
         return (
@@ -119,7 +139,6 @@ def image_post():
         content_type = image_file.content_type
         upload_image_url = s3_ops.upload_img_to_s3(image_file, image_filename, content_type)
         get_image = s3_ops.image_from_s3(image_filename)
-        # res = classifier.image_classifier(get_image)
 
         model = s3_ops.load_model_from_s3("model_final")
         class_result, prob_result = predict(get_image, model)

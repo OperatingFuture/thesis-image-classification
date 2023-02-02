@@ -1,12 +1,8 @@
 import io
 import os
-import tempfile
-import urllib
 import zipfile
-import tensorflow as tf
 import boto3
 from botocore.client import ClientError
-from PIL import Image
 from tensorflow.keras.preprocessing.image import load_img, img_to_array
 from tensorflow.keras.models import load_model
 
@@ -37,27 +33,14 @@ def upload_img_to_s3(img, filename, content_type):
         return e
     return "http://localhost:9000/saved-images/" + filename
 
-
-# def load_image(image_url):
-#     with urllib.request.urlopen(image_url) as url:
-#         img = load_img(io.BytesIO(url.read()), target_size=(125, 125))
-#
-#     return image.img_to_array(img)
-
 def image_from_s3(filename):
     bucket = s3_resource.Bucket("saved-images")
     image = bucket.Object(filename)
-    #img_data = image.get().get('Body').read()
-    #image = load_img(io.BytesIO(url.read()), target_size=(32, 32))
     image = load_img(io.BytesIO(image.get()['Body'].read()), target_size=(32, 32))
     image = img_to_array(image)
     image = image.reshape(1, 32, 32, 3)
-
     image = image.astype('float32')
     image = image / 255.0
-    # img = Image.open(io.BytesIO(img_data))
-    # img = img.convert('RGB')
-    # img = img.resize((224, 224))
     return image
 
 def load_model_from_s3(model_name: str):
@@ -68,4 +51,4 @@ def load_model_from_s3(model_name: str):
     with zipfile.ZipFile(f"{model_name}.zip") as zip_ref:
         zip_ref.extractall(f"{model_name}")
     # Load the keras model from the temporary directory
-    return tf.keras.models.load_model(os.path.join("model_final/model_final", "custom_cnn_final.h5"))
+    return load_model(os.path.join("model_final/model_final", "custom_cnn_final.h5"))
