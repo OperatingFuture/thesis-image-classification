@@ -1,5 +1,6 @@
 import io
 import os
+import shutil
 import zipfile
 import boto3
 from botocore.client import ClientError
@@ -20,9 +21,6 @@ s3 = boto3.client("s3",
 
 
 def upload_img_to_s3(img, filename, content_type):
-    """
-    Docs: https://boto3.readthedocs.io/en/latest/guide/s3.html
-    """
     try:
         s3.put_object(Body=img,
                       Bucket="saved-images",
@@ -33,7 +31,7 @@ def upload_img_to_s3(img, filename, content_type):
         return e
     return "http://localhost:9000/saved-images/" + filename
 
-def image_from_s3(filename):
+def image_from_s3(filename: str):
     bucket = s3_resource.Bucket("saved-images")
     image = bucket.Object(filename)
     image = load_img(io.BytesIO(image.get()['Body'].read()), target_size=(32, 32))
@@ -51,4 +49,8 @@ def load_model_from_s3(model_name: str):
     with zipfile.ZipFile(f"{model_name}.zip") as zip_ref:
         zip_ref.extractall(f"{model_name}")
     # Load the keras model from the temporary directory
-    return load_model(os.path.join("model_final/model_final", "custom_cnn_final.h5"))
+    model =  load_model(os.path.join("model_final/model_final", "custom_cnn_final.h5"))
+    if os.path.exists(f"{model_name}.zip") and os.path.exists(f"{model_name}"):
+        os.remove(f"{model_name}.zip")
+        shutil.rmtree(f"{model_name}")
+    return model

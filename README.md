@@ -1,2 +1,5 @@
-# thesis-image-classification
-Thesis project
+# Image Classification Thesis
+Image classification thesis project.
+
+## 📝 About ##
+

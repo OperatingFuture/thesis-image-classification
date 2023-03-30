@@ -1,39 +1,13 @@
-import base64
 import io
-import json
-import os
 import requests
-from flask import request, jsonify, Response, send_file, render_template
+from flask import request, jsonify, send_file, render_template
 from pymongo import MongoClient
 from werkzeug.utils import secure_filename
-from api import api, helpers, s3_ops
+from api import api, s3_ops, config, predict
 
-conn_str = "mongodb://root_user:root_pwd@mongodb:27017/?authMechanism=DEFAULT"
-client = MongoClient(conn_str)
+
+client = MongoClient(config.conn_str)
 collection = client.image_data.predictions
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-
-def predict(img, model):
-    result = model.predict(img)
-    classes = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
-    dict_result = {}
-    for i in range(10):
-        dict_result[result[0][i]] = classes[i]
-
-    res = result[0]
-    res.sort()
-    res = res[::-1]
-    prob = res[:3]
-
-    prob_result = []
-    class_result = []
-    for i in range(3):
-        prob_result.append((prob[i] * 100).round(2))
-        class_result.append(dict_result[prob[i]])
-
-    return class_result, prob_result
-
 
 
 @api.route("/alive", methods=["GET"])
@@ -117,6 +91,7 @@ def image_post():
     """This endpoint receives a form parameter called image with the image file to be classified,
     and saves the image uri to mongo.
     """
+    model = s3_ops.load_model_from_s3("model_final")
     if "image" not in request.files:
         return (
             jsonify(
@@ -133,24 +108,13 @@ def image_post():
             400,
         )
 
-    if image_file and helpers.allowed_file(image_filename):
-        # --- Controller start
-        # prepare the image and save it in s3 bucket
+    if image_file and config.allowed_file(image_filename):
         content_type = image_file.content_type
         upload_image_url = s3_ops.upload_img_to_s3(image_file, image_filename, content_type)
         get_image = s3_ops.image_from_s3(image_filename)
 
-        model = s3_ops.load_model_from_s3("model_final")
-        class_result, prob_result = predict(get_image, model)
 
-        # predictions = {
-        #     "class1": 'yolo',
-        #     "class2": 'yolo',
-        #     "class3": 'yolo',
-        #     "prob1": 40,
-        #     "prob2": 50,
-        #     "prob3": 10,
-        # }
+        class_result, prob_result = predict.predict(get_image, model)
 
         predictions = {
             "class1": class_result[0],
@@ -161,7 +125,7 @@ def image_post():
             "prob3": prob_result[2],
         }
 
-        obj = {"uri": upload_image_url, "labels": "predictions"}
+        obj = {"uri": upload_image_url, "labels": predictions}
 
         try:
             collection.insert_one(obj)
@@ -169,17 +133,9 @@ def image_post():
         except Exception as e:
             return jsonify({"Error": e.__str__()})
 
-        # ----- Controller end
     else:
-        return (
-            jsonify(
-                {
-                    "message": "not allowed image type, allowed types are: 'png', 'jpg', 'jpeg', 'gif' ",
-                    "status": "400",
-                }
-            ),
-            400,
-        )
+        return (jsonify({"message": "not allowed image type, allowed types are: 'png', 'jpg', 'jpeg', 'gif' ",
+                         "status": "400"}),400)
 
 
 if __name__ == "main":
